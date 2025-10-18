@@ -2,33 +2,29 @@ import OpenAI from "openai";
 
 export default async function handler(req, res) {
   try {
-    const body = req.body && typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const userText = body?.text || "";
-    const type = body?.type || "summarize";
-    const language = body?.language || "English";
+    const { transcript, type } = req.body;
+
+    if (!transcript) {
+      return res.status(400).json({ error: "Transcript missing" });
+    }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    let prompt = "";
-    if (type === "summarize") {
-      prompt = `Summarize this text in a clear and short way:\n\n${userText}`;
-    } else if (type === "rewrite") {
-      prompt = `Rewrite this text in a natural, human-friendly tone:\n\n${userText}`;
-    } else if (type === "translate") {
-      prompt = `Translate the following text into ${language}:\n\n${userText}`;
-    } else {
-      prompt = userText;
-    }
+    const prompt =
+      type === "seo"
+        ? `Write a detailed, SEO-optimized blog post based on: ${transcript}`
+        : `Write a short, concise blog based on: ${transcript}`;
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }]
+      messages: [{ role: "user", content: prompt }],
     });
 
-    const resultText = completion.choices?.[0]?.message?.content || "";
-    res.status(200).json({ result: resultText });
+    const aiOutput = completion.choices[0].message.content;
+    res.status(200).json({ full_text: aiOutput });
+
   } catch (error) {
-    console.error("API Error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("AI Error:", error);
+    res.status(500).json({ error: "Something went wrong" });
   }
 }
